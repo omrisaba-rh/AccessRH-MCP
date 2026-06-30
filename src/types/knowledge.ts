@@ -15,6 +15,14 @@ export const SearchSolutionsInput = {
     .min(0)
     .optional()
     .describe('Pagination offset (0-based, default 0)'),
+  product: z
+    .string()
+    .optional()
+    .describe('Filter by Red Hat product (e.g. "Red Hat Enterprise Linux", "Red Hat OpenShift Container Platform"). Aliases like "RHEL", "OCP", "Ansible" are also accepted.'),
+  documentType: z
+    .enum(['Solution', 'Article'])
+    .optional()
+    .describe('Filter by document type'),
 };
 
 export const GetSolutionInput = {

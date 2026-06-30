@@ -1,10 +1,38 @@
+import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
 import { SSO_TOKEN_URL, SSO_CLIENT_ID, TOKEN_REFRESH_BUFFER_MS, SSO_REQUEST_TIMEOUT_MS } from './constants.js';
 
+const ALGORITHM = 'aes-256-gcm';
+const ENCRYPTION_KEY = randomBytes(32);
+
+interface EncryptedBlob {
+  ciphertext: Buffer;
+  iv: Buffer;
+  tag: Buffer;
+}
+
+function encrypt(plaintext: string): EncryptedBlob {
+  const iv = randomBytes(16);
+  const cipher = createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
+  const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  return { ciphertext, iv, tag: cipher.getAuthTag() };
+}
+
+function decrypt(blob: EncryptedBlob): string {
+  const decipher = createDecipheriv(ALGORITHM, ENCRYPTION_KEY, blob.iv);
+  decipher.setAuthTag(blob.tag);
+  return decipher.update(blob.ciphertext) + decipher.final('utf8');
+}
+
 interface TokenEntry {
-  offlineToken: string;
+  encryptedOfflineToken: EncryptedBlob;
   accessToken: string;
   expiresAt: number;
   lastActivity: number;
+}
+
+interface SSOExchangeResult {
+  accessToken: string;
+  expiresInMs: number;
 }
 
 interface SSOTokenResponse {
@@ -19,7 +47,16 @@ export class TokenManager {
   private refreshInFlight = new Map<string, Promise<string>>();
 
   async authenticate(sessionId: string, offlineToken: string): Promise<string> {
-    return this.fetchAccessToken(offlineToken, sessionId, true);
+    const result = await this.exchangeToken(offlineToken);
+
+    this.sessions.set(sessionId, {
+      encryptedOfflineToken: encrypt(offlineToken),
+      accessToken: result.accessToken,
+      expiresAt: Date.now() + result.expiresInMs,
+      lastActivity: Date.now(),
+    });
+
+    return result.accessToken;
   }
 
   async getAccessToken(sessionId: string): Promise<string> {
@@ -40,7 +77,7 @@ export class TokenManager {
       return existing;
     }
 
-    const refreshPromise = this.fetchAccessToken(entry.offlineToken, sessionId, false).finally(() => {
+    const refreshPromise = this.refreshSession(sessionId).finally(() => {
       this.refreshInFlight.delete(sessionId);
     });
     this.refreshInFlight.set(sessionId, refreshPromise);
@@ -75,7 +112,27 @@ export class TokenManager {
     return stale;
   }
 
-  private async fetchAccessToken(offlineToken: string, sessionId: string, isInitialAuth: boolean): Promise<string> {
+  private async refreshSession(sessionId: string): Promise<string> {
+    const entry = this.sessions.get(sessionId);
+    if (!entry) {
+      throw new Error('Session not found during token refresh.');
+    }
+
+    const offlineToken = decrypt(entry.encryptedOfflineToken);
+    const result = await this.exchangeToken(offlineToken);
+
+    if (!this.sessions.has(sessionId)) {
+      return result.accessToken;
+    }
+
+    entry.accessToken = result.accessToken;
+    entry.expiresAt = Date.now() + result.expiresInMs;
+    entry.lastActivity = Date.now();
+
+    return result.accessToken;
+  }
+
+  private async exchangeToken(offlineToken: string): Promise<SSOExchangeResult> {
     const response = await fetch(SSO_TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -88,8 +145,7 @@ export class TokenManager {
     });
 
     if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      console.error(`SSO token exchange failed (${response.status}): ${body}`);
+      console.error(`SSO token exchange failed (${response.status})`);
       if (response.status === 400 || response.status === 401) {
         throw new Error(
           `Authentication failed (${response.status}). Your offline token may be invalid or expired. ` +
@@ -102,21 +158,11 @@ export class TokenManager {
     }
 
     const data = (await response.json()) as SSOTokenResponse;
-
-    if (!isInitialAuth && !this.sessions.has(sessionId)) {
-      return data.access_token;
-    }
-
-    this.sessions.set(sessionId, {
-      offlineToken,
+    return {
       accessToken: data.access_token,
-      expiresAt: Date.now() + data.expires_in * 1000,
-      lastActivity: Date.now(),
-    });
-
-    return data.access_token;
+      expiresInMs: data.expires_in * 1000,
+    };
   }
-
 }
 
 export const tokenManager = new TokenManager();

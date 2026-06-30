@@ -86,8 +86,7 @@ export async function apiRequest<T = unknown>(options: ApiRequestOptions): Promi
       continue;
     }
 
-    const errorBody = await response.text().catch(() => '');
-    console.error(`Red Hat API error ${response.status} on ${method} ${path}: ${errorBody}`);
+    console.error(`Red Hat API error ${response.status} on ${method} ${path}`);
     throw new Error(sanitizeApiError(response.status, method, path));
   }
 

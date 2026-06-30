@@ -8,7 +8,23 @@ import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/in
 import { tokenManager } from './auth.js';
 import { registerCaseTools } from './tools/cases.js';
 import { registerKnowledgeTools } from './tools/knowledge.js';
+import type { Request, Response } from 'express';
 import { SESSION_IDLE_TIMEOUT_MS, SESSION_REAP_INTERVAL_MS, MAX_SESSIONS } from './constants.js';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function getValidatedSessionId(req: Request, res: Response): string | undefined | false {
+  const sessionId = req.headers['mcp-session-id'] as string | undefined;
+  if (sessionId && !UUID_RE.test(sessionId)) {
+    res.status(400).json({
+      jsonrpc: '2.0',
+      error: { code: -32000, message: 'Invalid session ID format' },
+      id: null,
+    });
+    return false;
+  }
+  return sessionId;
+}
 
 const SERVER_INSTRUCTIONS = `You are interacting with the Red Hat Customer Portal API.
 
@@ -102,7 +118,8 @@ const sessionCreatedAt = new Map<string, number>();
 let pendingSessionCount = 0;
 
 app.post('/mcp', async (req, res) => {
-  const sessionId = req.headers['mcp-session-id'] as string | undefined;
+  const sessionId = getValidatedSessionId(req, res);
+  if (sessionId === false) return;
 
   try {
     let transport: StreamableHTTPServerTransport;
@@ -137,15 +154,15 @@ app.post('/mcp', async (req, res) => {
               tokenManager
                 .authenticate(newSessionId, bearerToken)
                 .then(() => {
-                  console.log(`New session: ${newSessionId} (auto-authenticated via bearer token)`);
+                  console.log(`New session: ${newSessionId.slice(0, 8)}… (auto-authenticated via bearer token)`);
                 })
                 .catch((err) => {
                   console.warn(
-                    `New session: ${newSessionId} (bearer token validation failed: ${err instanceof Error ? err.message : err})`,
+                    `New session: ${newSessionId.slice(0, 8)}… (bearer token validation failed: ${err instanceof Error ? err.message : err})`,
                   );
                 });
             } else {
-              console.log(`New session: ${newSessionId}`);
+              console.log(`New session: ${newSessionId.slice(0, 8)}…`);
             }
           },
         });
@@ -156,7 +173,7 @@ app.post('/mcp', async (req, res) => {
             tokenManager.clearSession(sid);
             transports.delete(sid);
             sessionCreatedAt.delete(sid);
-            console.log(`Session closed: ${sid}`);
+            console.log(`Session closed: ${sid.slice(0, 8)}…`);
           }
         };
 
@@ -193,7 +210,8 @@ app.post('/mcp', async (req, res) => {
 });
 
 app.get('/mcp', async (req, res) => {
-  const sessionId = req.headers['mcp-session-id'] as string | undefined;
+  const sessionId = getValidatedSessionId(req, res);
+  if (sessionId === false) return;
   if (!sessionId || !transports.has(sessionId)) {
     res.status(400).send('Invalid or missing session ID');
     return;
@@ -209,7 +227,8 @@ app.get('/mcp', async (req, res) => {
 });
 
 app.delete('/mcp', async (req, res) => {
-  const sessionId = req.headers['mcp-session-id'] as string | undefined;
+  const sessionId = getValidatedSessionId(req, res);
+  if (sessionId === false) return;
   if (!sessionId || !transports.has(sessionId)) {
     res.status(400).send('Invalid or missing session ID');
     return;
@@ -242,9 +261,9 @@ const reapInterval = setInterval(async () => {
       tokenManager.clearSession(sid);
       transports.delete(sid);
       sessionCreatedAt.delete(sid);
-      console.log(`Reaped idle session: ${sid}`);
+      console.log(`Reaped idle session: ${sid.slice(0, 8)}…`);
     } catch (error) {
-      console.error(`Error reaping session ${sid}:`, error);
+      console.error(`Error reaping session ${sid.slice(0, 8)}…:`, error);
     }
   }
 
@@ -258,9 +277,9 @@ const reapInterval = setInterval(async () => {
         }
         transports.delete(sid);
         sessionCreatedAt.delete(sid);
-        console.log(`Reaped unauthenticated session: ${sid}`);
+        console.log(`Reaped unauthenticated session: ${sid.slice(0, 8)}…`);
       } catch (error) {
-        console.error(`Error reaping unauthenticated session ${sid}:`, error);
+        console.error(`Error reaping unauthenticated session ${sid.slice(0, 8)}…:`, error);
       }
     }
   }
@@ -280,7 +299,7 @@ process.on('SIGINT', async () => {
       await transport.close();
       transports.delete(sessionId);
     } catch (error) {
-      console.error(`Error closing session ${sessionId}:`, error);
+      console.error(`Error closing session ${sessionId.slice(0, 8)}…:`, error);
     }
   }
   process.exit(0);
@@ -293,7 +312,7 @@ process.on('SIGTERM', async () => {
       await transport.close();
       transports.delete(sessionId);
     } catch (error) {
-      console.error(`Error closing session ${sessionId}:`, error);
+      console.error(`Error closing session ${sessionId.slice(0, 8)}…:`, error);
     }
   }
   process.exit(0);

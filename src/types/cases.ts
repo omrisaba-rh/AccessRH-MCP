@@ -27,6 +27,7 @@ export const ListCasesInput = {
 
 export const GetCaseInput = {
   caseId: caseIdSchema,
+  includeComments: z.boolean().optional().describe('Also fetch and include comments (default: false)'),
 };
 
 export const CreateCaseInput = {
@@ -57,6 +58,11 @@ export const UpdateCaseInput = {
 
 export const EscalateCaseInput = {
   caseId: caseIdSchema,
+};
+
+export const CloseCaseInput = {
+  caseId: caseIdSchema,
+  comment: z.string().optional().describe('Optional closing comment explaining the resolution'),
 };
 
 export const ListCaseCommentsInput = {
