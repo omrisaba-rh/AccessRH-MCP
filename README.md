@@ -4,10 +4,13 @@ An MCP (Model Context Protocol) server that provides access to the [Red Hat Cust
 
 ## Features
 
-- **Case Management** — List, create, update, and escalate Red Hat support cases; manage comments and attachments
+- **Case Management** — List, create, update, close, and escalate Red Hat support cases; manage comments and attachments
+- **Knowledge Base Search** — Search Red Hat KCS articles and solutions with product/document type filtering; retrieve structured content (environment, issue, root cause, resolution)
 - **Multi-User Sessions** — Each HTTP session gets isolated authentication and token state
 - **Automatic Token Refresh** — Offline tokens are exchanged for short-lived access tokens, refreshed automatically before expiry
-- **Smart Error Handling** — Automatic retry on rate limits (429), token expiry (401/403), and server errors (500)
+- **Smart Error Handling** — Automatic retry on rate limits (429), token expiry (401/403), and server errors (500); all tools return structured `isError` responses
+- **Security Hardened** — In-memory AES-256-GCM encryption of offline tokens, log redaction, UUID-validated session IDs
+- **Optimized for LLMs** — Response shaping returns only essential fields to minimize token consumption; Hydra Solr expressions for server-side field selection
 - **Containerized** — Ships with a multi-stage Dockerfile for lightweight production deployment
 
 ## Prerequisites
@@ -78,7 +81,7 @@ Must be called first in every session.
 
 ### `list_cases`
 
-List and filter support cases. Uses POST with filter body.
+List Red Hat support cases using the official Case Management API. Best for structured filtering by severity, status, product, owner, date range, or account. Use `search_cases` for free-text keyword search.
 
 | Parameter       | Required | Description                                    |
 |-----------------|----------|------------------------------------------------|
@@ -95,7 +98,7 @@ List and filter support cases. Uses POST with filter body.
 
 ### `search_cases`
 
-Full-text search across case summaries, descriptions, and comments. Use this for free-text queries; use `list_cases` for structured filtering.
+Full-text search across Red Hat support cases via the Hydra search index. Best for natural language queries, error messages, or keyword searches. Use `list_cases` for structured filtering.
 
 | Parameter | Required | Description                                |
 |-----------|----------|--------------------------------------------|
@@ -105,15 +108,16 @@ Full-text search across case summaries, descriptions, and comments. Use this for
 
 ### `get_case`
 
-Get full details of a specific case.
+Get full details of a specific case. Set `includeComments` to fetch comments in the same call.
 
-| Parameter | Required | Description        |
-|-----------|----------|--------------------|
-| `caseId`  | Yes      | Support case number|
+| Parameter         | Required | Description                                |
+|-------------------|----------|--------------------------------------------|
+| `caseId`          | Yes      | Support case number                        |
+| `includeComments` | No       | Also fetch and include comments (default: false) |
 
 ### `create_case`
 
-Create a new support case.
+Create a new support case. Search the Knowledge Base with `search_solutions` first to check for existing solutions.
 
 | Parameter     | Required | Description                      |
 |---------------|----------|----------------------------------|
@@ -143,6 +147,15 @@ Escalate a case for management attention.
 | Parameter | Required | Description           |
 |-----------|----------|-----------------------|
 | `caseId`  | Yes      | Case number to escalate|
+
+### `close_case`
+
+Close a support case with an optional resolution comment.
+
+| Parameter | Required | Description                                      |
+|-----------|----------|--------------------------------------------------|
+| `caseId`  | Yes      | Case number to close                             |
+| `comment` | No       | Optional closing comment explaining the resolution |
 
 ### `list_case_comments`
 
@@ -182,17 +195,19 @@ Upload a file attachment to a case (up to 1GB).
 
 ### `search_solutions`
 
-Search the Red Hat Knowledge Base for solutions and articles by keyword.
+Search the Red Hat Knowledge Base for solutions and articles by keyword. Supports filtering by product and document type. Product aliases like "RHEL", "OCP", "Ansible" are resolved automatically.
 
-| Parameter | Required | Description                              |
-|-----------|----------|------------------------------------------|
-| `query`   | Yes      | Search keywords (e.g. "kernel panic RHEL 9") |
-| `rows`    | No       | Number of results (default 10, max 100)  |
-| `start`   | No       | Pagination offset (default 0)            |
+| Parameter      | Required | Description                                        |
+|----------------|----------|----------------------------------------------------|
+| `query`        | Yes      | Search keywords (e.g. "kernel panic RHEL 9")       |
+| `rows`         | No       | Number of results (default 10, max 100)            |
+| `start`        | No       | Pagination offset (default 0)                      |
+| `product`      | No       | Filter by Red Hat product (e.g. "RHEL", "OCP")     |
+| `documentType` | No       | Filter by type: "Solution" or "Article"            |
 
 ### `get_solution`
 
-Get the full content of a Knowledge Base article by its ID.
+Get the full content of a Knowledge Base article by its ID. Returns structured fields: title, environment, issue, root cause, resolution, and diagnostic steps.
 
 | Parameter    | Required | Description                          |
 |--------------|----------|--------------------------------------|
