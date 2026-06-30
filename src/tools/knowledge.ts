@@ -66,7 +66,7 @@ export function registerKnowledgeTools(server: McpServer): void {
     annotations: { readOnlyHint: true, openWorldHint: true },
   }, async (args, extra) => {
     try {
-      const sessionId = requireAuth(extra);
+      const sessionId = await requireAuth(extra);
 
       const params = new URLSearchParams({ q: args.query });
       params.set('rows', String(args.rows ?? DEFAULT_SEARCH_ROWS));
@@ -113,7 +113,7 @@ export function registerKnowledgeTools(server: McpServer): void {
     annotations: { readOnlyHint: true, openWorldHint: false },
   }, async (args, extra) => {
     try {
-      const sessionId = requireAuth(extra);
+      const sessionId = await requireAuth(extra);
 
       const fl = 'id,allTitle,solution_resolution,solution_environment,solution_root_cause,solution_issue,solution_diagnostic_steps,view_uri';
       const params = new URLSearchParams({

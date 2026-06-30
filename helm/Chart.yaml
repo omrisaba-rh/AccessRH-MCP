@@ -1,0 +1,19 @@
+apiVersion: v2
+name: access-rh-mcp
+description: A Helm chart for Access RH MCP Server - Red Hat Customer Portal API integration for AI assistants
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - mcp
+  - redhat
+  - access.redhat.com
+  - ai
+  - llm
+  - customer-portal
+home: https://github.com/yhabushi/AccessRH-MCP
+sources:
+  - https://github.com/yhabushi/AccessRH-MCP
+maintainers:
+  - name: UnifAI Team
+    email: unifai@redhat.com

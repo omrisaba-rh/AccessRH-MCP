@@ -1,0 +1,91 @@
+# Default values for access-rh-mcp
+replicaCount: 1
+
+image:
+  repository: images.paas.redhat.com/unifai/access-rh-mcp
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+# Pod security context
+# Note: Do NOT set fsGroup or runAsUser for OpenShift deployments
+# OpenShift assigns these from the namespace's SCC range
+podSecurityContext: {}
+
+# Container security context
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 3000
+  targetPort: 3000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: access-rh-mcp.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Environment variables for the application
+env:
+  MCP_PORT: "3000"
+  MCP_HOST: "0.0.0.0"
+
+# Health check configuration
+healthCheck:
+  enabled: true
+  path: /health
+  initialDelaySeconds: 15
+  periodSeconds: 30
+  timeoutSeconds: 10
+  successThreshold: 1
+  failureThreshold: 3
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+# OpenShift Route configuration (HTTPS)
+route:
+  enabled: false
+  host: ""
+  annotations: {}
+  termination: edge
+  insecureEdgeTerminationPolicy: Redirect

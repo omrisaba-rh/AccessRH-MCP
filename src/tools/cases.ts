@@ -50,7 +50,7 @@ export function registerCaseTools(server: McpServer): void {
     annotations: { readOnlyHint: true, openWorldHint: true },
   }, async (args, extra) => {
     try {
-      const sessionId = requireAuth(extra);
+      const sessionId = await requireAuth(extra);
 
       const body: Record<string, unknown> = {};
       if (args.offset !== undefined) body.offset = args.offset;
@@ -90,7 +90,7 @@ export function registerCaseTools(server: McpServer): void {
     annotations: { readOnlyHint: true, openWorldHint: false },
   }, async (args, extra) => {
     try {
-      const sessionId = requireAuth(extra);
+      const sessionId = await requireAuth(extra);
 
       const casePromise = apiRequest({
         method: 'GET',
@@ -129,7 +129,7 @@ export function registerCaseTools(server: McpServer): void {
     annotations: { readOnlyHint: false, openWorldHint: true },
   }, async (args, extra) => {
     try {
-      const sessionId = requireAuth(extra);
+      const sessionId = await requireAuth(extra);
 
       const body: Record<string, unknown> = {
         product: args.product,
@@ -162,7 +162,7 @@ export function registerCaseTools(server: McpServer): void {
     annotations: { readOnlyHint: false, openWorldHint: false },
   }, async (args, extra) => {
     try {
-      const sessionId = requireAuth(extra);
+      const sessionId = await requireAuth(extra);
 
       const { caseId, ...updates } = args;
       const body: Record<string, unknown> = {};
@@ -201,7 +201,7 @@ export function registerCaseTools(server: McpServer): void {
     annotations: { readOnlyHint: false, openWorldHint: false },
   }, async (args, extra) => {
     try {
-      const sessionId = requireAuth(extra);
+      const sessionId = await requireAuth(extra);
 
       await apiRequest({
         method: 'PUT',
@@ -225,7 +225,7 @@ export function registerCaseTools(server: McpServer): void {
     annotations: { readOnlyHint: false, openWorldHint: false },
   }, async (args, extra) => {
     try {
-      const sessionId = requireAuth(extra);
+      const sessionId = await requireAuth(extra);
 
       await apiRequest({
         method: 'PUT',
@@ -260,7 +260,7 @@ export function registerCaseTools(server: McpServer): void {
     annotations: { readOnlyHint: true, openWorldHint: false },
   }, async (args, extra) => {
     try {
-      const sessionId = requireAuth(extra);
+      const sessionId = await requireAuth(extra);
 
       const result = await apiRequest({
         method: 'GET',
@@ -282,7 +282,7 @@ export function registerCaseTools(server: McpServer): void {
     annotations: { readOnlyHint: false, openWorldHint: false },
   }, async (args, extra) => {
     try {
-      const sessionId = requireAuth(extra);
+      const sessionId = await requireAuth(extra);
 
       const result = await apiRequest({
         method: 'POST',
@@ -308,7 +308,7 @@ export function registerCaseTools(server: McpServer): void {
     annotations: { readOnlyHint: true, openWorldHint: true },
   }, async (args, extra) => {
     try {
-      const sessionId = requireAuth(extra);
+      const sessionId = await requireAuth(extra);
 
       const params = new URLSearchParams({ q: args.query });
       params.set('rows', String(args.rows ?? DEFAULT_SEARCH_ROWS));
@@ -353,7 +353,7 @@ export function registerCaseTools(server: McpServer): void {
     annotations: { readOnlyHint: true, openWorldHint: false },
   }, async (args, extra) => {
     try {
-      const sessionId = requireAuth(extra);
+      const sessionId = await requireAuth(extra);
 
       const result = await apiRequest({
         method: 'GET',
@@ -377,7 +377,7 @@ export function registerCaseTools(server: McpServer): void {
     annotations: { readOnlyHint: false, openWorldHint: false },
   }, async (args, extra) => {
     try {
-      const sessionId = requireAuth(extra);
+      const sessionId = await requireAuth(extra);
 
       if (args.fileContent.length > MAX_ATTACHMENT_BASE64_LENGTH) {
         const limitMB = (MAX_ATTACHMENT_SIZE_BYTES / 1024 / 1024).toFixed(0);

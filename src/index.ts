@@ -115,6 +115,7 @@ const HOST = process.env.MCP_HOST ?? '0.0.0.0';
 const app = createMcpExpressApp({ host: HOST });
 const transports = new Map<string, StreamableHTTPServerTransport>();
 const sessionCreatedAt = new Map<string, number>();
+export const pendingAuth = new Map<string, Promise<void>>();
 let pendingSessionCount = 0;
 
 app.post('/mcp', async (req, res) => {
@@ -151,7 +152,7 @@ app.post('/mcp', async (req, res) => {
             const authHeader = req.headers['authorization'];
             if (authHeader && authHeader.startsWith('Bearer ')) {
               const bearerToken = authHeader.slice(7);
-              tokenManager
+              const authPromise = tokenManager
                 .authenticate(newSessionId, bearerToken)
                 .then(() => {
                   console.log(`New session: ${newSessionId.slice(0, 8)}… (auto-authenticated via bearer token)`);
@@ -160,7 +161,11 @@ app.post('/mcp', async (req, res) => {
                   console.warn(
                     `New session: ${newSessionId.slice(0, 8)}… (bearer token validation failed: ${err instanceof Error ? err.message : err})`,
                   );
+                })
+                .finally(() => {
+                  pendingAuth.delete(newSessionId);
                 });
+              pendingAuth.set(newSessionId, authPromise);
             } else {
               console.log(`New session: ${newSessionId.slice(0, 8)}…`);
             }
@@ -170,6 +175,7 @@ app.post('/mcp', async (req, res) => {
         transport.onclose = () => {
           const sid = transport.sessionId;
           if (sid) {
+            pendingAuth.delete(sid);
             tokenManager.clearSession(sid);
             transports.delete(sid);
             sessionCreatedAt.delete(sid);
